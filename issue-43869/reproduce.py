@@ -65,6 +65,8 @@ def main():
     root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "issue-43869"
     root.mkdir()
     arch = {"arm64": "arm64", "x86_64": "x64"}[platform.machine()]
+    if arch != os.environ["REPRO_EXPECTED_ARCH"]:
+        raise RuntimeError("Runner architecture differs from the declared control.")
     metadata_url = "https://builds.dotnet.microsoft.com/dotnet/release-metadata/8.0/releases.json"
     with urllib.request.urlopen(metadata_url, timeout=60) as response:
         metadata = json.load(response)
