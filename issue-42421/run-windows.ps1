@@ -22,20 +22,21 @@ function Start-WindowsCommand([string] $Exe, [string[]] $Arguments, [string] $La
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
     $process = Start-Process -FilePath $Exe -ArgumentList $Arguments -WorkingDirectory $root -PassThru `
         -RedirectStandardOutput "$directory\stdout.raw" -RedirectStandardError "$directory\stderr.raw"
-    [pscustomobject]@{Process=$process;Directory=$directory;Label=$Label;Executable=$Exe;Arguments=$Arguments;StartedUtc=[DateTime]::UtcNow}
+    [pscustomobject]@{Process=$process;Directory=$directory;Label=$Label;Executable=$Exe;Arguments=$Arguments;StartedUtc=$process.StartTime.ToUniversalTime()}
 }
 function Finish-WindowsCommand($Invocation) {
     $Invocation.Process.WaitForExit()
     $Invocation.Process.Refresh()
     $record = @{
         host='Windows'; pid=$Invocation.Process.Id; startedUtc=$Invocation.StartedUtc
-        finishedUtc=[DateTime]::UtcNow; exitCode=$Invocation.Process.ExitCode
+        finishedUtc=$Invocation.Process.ExitTime.ToUniversalTime(); collectedUtc=[DateTime]::UtcNow
+        exitCode=$Invocation.Process.ExitCode
         executable=$Invocation.Executable; arguments=$Invocation.Arguments
         fallbackEnvironment=$env:NUGET_FALLBACK_PACKAGES
     }
     $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$($Invocation.Directory)\invocation.json"
     Get-Content "$($Invocation.Directory)\stdout.raw","$($Invocation.Directory)\stderr.raw" |
-        Where-Object { $_ -match 'Writing assets file|Generating MSBuild file|Persisting dg|error |fallback package folder|Captured consumer|MSBuild version' } |
+        Where-Object { $_ -match 'Writing assets file|Generating MSBuild file|Persisting dg|\berror (MSB|NETSDK|NU|CS)\d+|fallback package folder|Captured consumer|^MSBuild version' } |
         Set-Content -LiteralPath "$($Invocation.Directory)\diagnostics.txt"
     python snapshot.py $root $Invocation.Directory
     Write-Host "$($Invocation.Label) exit=$($record.exitCode) pid=$($record.pid)"

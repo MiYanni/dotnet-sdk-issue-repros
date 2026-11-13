@@ -51,7 +51,7 @@ else
 fi
 started=$(date -u +%FT%T.%NZ)
 set +e
-strace -f -ttt -e trace=openat,rename,renameat,renameat2,unlink \
+strace -f -ttt -e trace=openat,rename,renameat,renameat2,unlink,execve,clone,clone3 \
     -o "$private/io.raw" "${command[@]}" > "$private/command.raw" 2>&1 &
 trace_pid=$!
 wait "$trace_pid"
@@ -68,9 +68,17 @@ record = dict(mode=sys.argv[2], startedUtc=sys.argv[3], exitCode=int(sys.argv[4]
 lines=(directory/"io.raw").read_text().splitlines()
 selected=[line for line in lines if re.search(r'project\.assets\.json|\.nuget\.dgspec\.json|\.nuget\.g\.props|\.nuget\.g\.targets',line)]
 (directory/"file-io.txt").write_text("\n".join(selected))
+process_lines=[line for line in lines if re.search(r'execve\(|clone3?\(',line)]
+(directory/"process-io.txt").write_text("\n".join(process_lines))
+record["dotnetPid"]=next((int(re.match(r'\s*(\d+)',line).group(1)) for line in process_lines if "execve(" in line),None)
+record["fileIoTids"]=sorted({int(re.match(r'\s*(\d+)',line).group(1)) for line in selected if re.match(r'\s*(\d+)',line)})
+(directory/"invocation.json").write_text(json.dumps(record, indent=2))
 lines=(directory/"command.raw").read_text().splitlines()
 selected=[line for line in lines if re.search(r'Writing assets file|Generating MSBuild file|Persisting dg|error |fallback package folder|Captured consumer|SDK Version:',line)]
 (directory/"diagnostics.txt").write_text("\n".join(selected))
+for name in ("invocation.json","file-io.txt","process-io.txt","diagnostics.txt"):
+    (directory/(sys.argv[2]+"."+name)).write_text((directory/name).read_text())
 PY
 python3 snapshot.py "$root" "$private"
+cp "$private/snapshots.json" "$private/$mode.snapshots.json"
 echo "$label $mode exit=$status"
