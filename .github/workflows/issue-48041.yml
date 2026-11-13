@@ -21,10 +21,6 @@ env:
   DOTNET_ADD_GLOBAL_TOOLS_TO_PATH: '0'
   DOTNET_NOLOGO: '1'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
-  DOTNET_INSTALL_DIR: ${{ runner.temp }}/issue-48041-dotnet
-  DOTNET_CLI_HOME: ${{ runner.temp }}/issue-48041-home
-  NUGET_PACKAGES: ${{ runner.temp }}/issue-48041-packages
-  NUGET_HTTP_CACHE_PATH: ${{ runner.temp }}/issue-48041-http
   MSBUILDDISABLENODEREUSE: '1'
 
 jobs:
@@ -32,6 +28,11 @@ jobs:
     name: SDK ${{ matrix.sdk }} / Xcode ${{ matrix.xcode }}
     runs-on: macos-15
     timeout-minutes: 60
+    env:
+      DOTNET_INSTALL_DIR: ${{ runner.temp }}/issue-48041-dotnet
+      DOTNET_CLI_HOME: ${{ runner.temp }}/issue-48041-home
+      NUGET_PACKAGES: ${{ runner.temp }}/issue-48041-packages
+      NUGET_HTTP_CACHE_PATH: ${{ runner.temp }}/issue-48041-http
     strategy:
       fail-fast: false
       max-parallel: 1
