@@ -1,0 +1,63 @@
+<Project>
+  <Target Name="_ReproCaptureContext"
+          Condition="'$(ReproCaptureDirectory)' != ''">
+    <MakeDir Directories="$(ReproCaptureDirectory)" />
+    <WriteLinesToFile File="$(ReproCaptureDirectory)/contexts.txt"
+      Lines="phase=$(ReproPhase)|project=$(MSBuildProjectName)|configuration=$(Configuration)|tfm=$(TargetFramework)|rid=$(RuntimeIdentifier)|rids=$([MSBuild]::Escape('$(RuntimeIdentifiers)'))|output=$(OutputPath)|assembly=$(TargetPath)|runtimeconfig=$(ProjectRuntimeConfigFilePath)|app=$(_CanOutputAppBundle)|inner=$(_IsMultiRidBuild)|append=$(AppendRuntimeIdentifierToOutputPath)|packrelease=$(PackRelease)"
+      Overwrite="false" />
+  </Target>
+
+  <Target Name="_ReproCaptureGeneratedRuntimeConfig"
+          AfterTargets="GenerateBuildRuntimeConfigurationFiles"
+          DependsOnTargets="_ReproCaptureContext"
+          Condition="'$(ReproCaptureDirectory)' != ''">
+    <WriteLinesToFile File="$(ReproCaptureDirectory)/generation.txt"
+      Lines="phase=$(ReproPhase)|tfm=$(TargetFramework)|rid=$(RuntimeIdentifier)|inner=$(_IsMultiRidBuild)|path=$(ProjectRuntimeConfigFilePath)|exists=$([System.IO.File]::Exists('$(ProjectRuntimeConfigFilePath)'))"
+      Overwrite="false" />
+  </Target>
+
+  <Target Name="_ReproCaptureBuiltGroup"
+          AfterTargets="BuiltProjectOutputGroup"
+          DependsOnTargets="_ReproCaptureContext"
+          Condition="'$(ReproCaptureDirectory)' != ''">
+    <WriteLinesToFile File="$(ReproCaptureDirectory)/built-group.txt"
+      Lines="@(BuiltProjectOutputGroupOutput->'phase=$(ReproPhase)|tfm=$(TargetFramework)|rid=$(RuntimeIdentifier)|inner=$(_IsMultiRidBuild)|identity=%(Identity)|final=%(FinalOutputPath)|target=%(TargetPath)')"
+      Overwrite="false" />
+  </Target>
+
+  <Target Name="_ReproCapturePackGroup"
+          AfterTargets="_GetBuildOutputFilesWithTfm"
+          DependsOnTargets="_ReproCaptureContext"
+          Condition="'$(ReproCaptureDirectory)' != ''">
+    <WriteLinesToFile File="$(ReproCaptureDirectory)/pack-group.txt"
+      Lines="@(BuildOutputInPackage->'phase=$(ReproPhase)|tfm=$(TargetFramework)|rid=$(RuntimeIdentifier)|identity=%(Identity)|final=%(FinalOutputPath)|target=%(TargetPath)')"
+      Overwrite="false" />
+  </Target>
+
+  <Target Name="_ReproCapturePackTaskInput"
+          BeforeTargets="GenerateNuspec"
+          DependsOnTargets="_ReproCaptureContext"
+          Condition="'$(ReproCaptureDirectory)' != ''">
+    <WriteLinesToFile File="$(ReproCaptureDirectory)/pack-task-input.txt"
+      Lines="@(_BuildOutputInPackage->'phase=$(ReproPhase)|context-tfm=$(TargetFramework)|item-tfm=%(TargetFramework)|rid=$(RuntimeIdentifier)|identity=%(Identity)|final=%(FinalOutputPath)|target=%(TargetPath)')"
+      Overwrite="false" />
+  </Target>
+
+  <Target Name="_ReproCaptureInnerBundle"
+          AfterTargets="_BuildRidSpecificAppBundle"
+          DependsOnTargets="_ReproCaptureContext"
+          Condition="'$(ReproCaptureDirectory)' != ''">
+    <WriteLinesToFile File="$(ReproCaptureDirectory)/inner-bundles.txt"
+      Lines="@(_AssemblyPublishDirectory->'phase=$(ReproPhase)|rid=$(RuntimeIdentifier)|identity=%(Identity)|architectures=%(TargetArchitectures)')"
+      Overwrite="false" />
+  </Target>
+
+  <Target Name="_ReproCaptureDispatch"
+          AfterTargets="_RunRidSpecificBuild"
+          DependsOnTargets="_ReproCaptureContext"
+          Condition="'$(ReproCaptureDirectory)' != ''">
+    <WriteLinesToFile File="$(ReproCaptureDirectory)/dispatch.txt"
+      Lines="@(_AssemblyPublishDirectories->'phase=$(ReproPhase)|rid=%(RuntimeIdentifier)|identity=%(Identity)|architectures=%(TargetArchitectures)|subdirectory=%(SpecificSubDirectory)')"
+      Overwrite="false" />
+  </Target>
+</Project>

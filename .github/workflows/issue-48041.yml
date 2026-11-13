@@ -1,0 +1,75 @@
+name: Issue 48041 Mac Catalyst pack
+
+on:
+  push:
+    branches: [issue-48041]
+    paths:
+      - issue-48041/**
+      - .github/workflows/issue-48041.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-48041-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_SESSIONID: gha-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_ADD_GLOBAL_TOOLS_TO_PATH: '0'
+  DOTNET_NOLOGO: '1'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+  DOTNET_INSTALL_DIR: ${{ runner.temp }}/issue-48041-dotnet
+  DOTNET_CLI_HOME: ${{ runner.temp }}/issue-48041-home
+  NUGET_PACKAGES: ${{ runner.temp }}/issue-48041-packages
+  NUGET_HTTP_CACHE_PATH: ${{ runner.temp }}/issue-48041-http
+  MSBUILDDISABLENODEREUSE: '1'
+
+jobs:
+  reproduce:
+    name: SDK ${{ matrix.sdk }} / Xcode ${{ matrix.xcode }}
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - sdk: 9.0.202
+            workload: 9.0.200
+            framework: net9.0
+            xcode: '16.2'
+          - sdk: 10.0.100
+            workload: 10.0.100
+            framework: net10.0
+            xcode: '26.0.1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: ${{ matrix.sdk }}
+      - name: Select installed Xcode
+        shell: bash
+        run: |
+          test -d "/Applications/Xcode_${{ matrix.xcode }}.app"
+          sudo xcode-select --switch "/Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer"
+          xcodebuild -version
+      - name: Install pinned workload and execute matrix
+        working-directory: issue-48041
+        env:
+          REPRO_SDK: ${{ matrix.sdk }}
+          REPRO_WORKLOAD: ${{ matrix.workload }}
+          REPRO_FRAMEWORK: ${{ matrix.framework }}
+        run: python3 run.py
+      - name: Publish sanitized evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: issue-48041-sdk-${{ matrix.sdk }}
+          path: issue-48041/evidence/
+          if-no-files-found: error
+          retention-days: 14
