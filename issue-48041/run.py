@@ -16,6 +16,7 @@ OUT = ROOT / "evidence"
 SDK = os.environ["REPRO_SDK"]
 WORKLOAD = os.environ["REPRO_WORKLOAD"]
 FRAMEWORK = os.environ["REPRO_FRAMEWORK"]
+MODES = os.environ.get("REPRO_CASE_MODES", "rid,list-one,list-two,default").split(",")
 RESULTS = []
 HOST_RID = "maccatalyst-arm64" if os.uname().machine == "arm64" else "maccatalyst-x64"
 RID_PAIR = "maccatalyst-x64;maccatalyst-arm64"
@@ -111,6 +112,9 @@ def prepare_app(case):
                 group.remove(element)
     tree.getroot().find("PropertyGroup").insert(0, ET.Element("TargetFrameworks"))
     tree.getroot().find("PropertyGroup/TargetFrameworks").text = FRAMEWORK + "-maccatalyst"
+    if case.endswith("list-one") or case.endswith("list-two"):
+        identifiers = ET.SubElement(tree.getroot().find("PropertyGroup"), "RuntimeIdentifiers")
+        identifiers.text = HOST_RID if case.endswith("list-one") else RID_PAIR
     tree.write(project, encoding="unicode")
     (directory / "Directory.Build.targets").write_text(
         f'<Project><Import Project="{ROOT / "Capture.targets"}" /></Project>\n')
@@ -144,10 +148,8 @@ def run_case(configuration, mode):
         extra += ["-p:RuntimeIdentifier=" + HOST_RID]
         rids = [HOST_RID]
     elif mode == "list-one":
-        extra += ["-p:RuntimeIdentifiers=" + HOST_RID]
         rids = [HOST_RID]
     elif mode == "list-two":
-        extra += ["-p:RuntimeIdentifiers=" + RID_PAIR.replace(";", "%3B")]
         rids = RID_PAIR.split(";")
     else:
         rids = RID_PAIR.split(";") if configuration == "Release" else [HOST_RID]
@@ -209,14 +211,16 @@ def main():
     command("environment", "template", ["dotnet", "new", "maui", "-n", "CatalystPackApp",
             "-o", str(RAW / "template"), "--no-restore"], required=True)
     write_json(OUT / "provenance.json", {"sdk": SDK, "workload_set": WORKLOAD,
-               "framework": FRAMEWORK, "host_rid": HOST_RID,
+               "framework": FRAMEWORK, "host_rid": HOST_RID, "modes": MODES,
                "run_url": "https://github.com/" + os.environ["GITHUB_REPOSITORY"] +
                           "/actions/runs/" + os.environ["GITHUB_RUN_ID"],
                "head": os.environ["GITHUB_SHA"],
                "binary_log_policy": "Raw binlogs retained only on ephemeral runner; never uploaded.",
                "project_policy": "MAUI template restricted to Mac Catalyst, no signing/output overrides."})
     for configuration in ("Debug", "Release"):
-        for mode in ("rid", "list-one", "list-two", "default"):
+        for mode in MODES:
+            if mode not in ("rid", "list-one", "list-two", "default"):
+                raise ValueError("Unknown matrix mode: " + mode)
             run_case(configuration, mode)
     library_control()
     rows = ["# Mac Catalyst build/pack command results", "",

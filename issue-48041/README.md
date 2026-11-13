@@ -23,3 +23,8 @@ Only sanitized text/JSON/project evidence is uploaded. Raw binary logs remain on
 the ephemeral runner because an environment-bearing binlog is not safe to publish
 without separate review. Expected build/pack failures remain visible in the
 command table; workflow success means collection completed, not that pack passed.
+
+The current push run repeats only the two-entry list cases; the previous full
+run's CLI-escaped two-entry input represented a single literal RID and is excluded.
+Lists are now written as literal project properties. Manual dispatch defaults to
+the full matrix; the selected modes are recorded in provenance.json.
