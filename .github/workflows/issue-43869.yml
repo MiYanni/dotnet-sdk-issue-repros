@@ -1,0 +1,40 @@
+name: Issue 43869 macOS cold SDK resolution
+
+on:
+  push:
+    branches: [issue-43869]
+    paths:
+      - issue-43869/**
+      - .github/workflows/issue-43869.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_SESSIONID: gha-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  reproduce:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-arm64]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Exact SDK cold and sudo controls
+        run: |
+          python3 -m py_compile issue-43869/reproduce.py
+          python3 issue-43869/reproduce.py
+      - name: Upload only sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: issue-43869-${{ matrix.runner }}-evidence
+          path: issue-43869/evidence/
+          if-no-files-found: error
+          retention-days: 14
