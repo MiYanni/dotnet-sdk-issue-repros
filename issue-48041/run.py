@@ -201,7 +201,7 @@ def main():
     command("environment", "xcode", ["xcodebuild", "-version"], required=True)
     command("environment", "os", ["sw_vers"], required=True)
     command("environment", "workload-install", ["dotnet", "workload", "install",
-            "maui-maccatalyst", "--version", WORKLOAD, "--skip-manifest-update",
+            "maui-maccatalyst", "--version", WORKLOAD,
             "--source", "https://api.nuget.org/v3/index.json", "--disable-parallel"],
             timeout=1200, required=True)
     command("environment", "sdk-after", ["dotnet", "--info"], required=True)
