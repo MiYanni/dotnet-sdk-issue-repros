@@ -29,10 +29,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     env:
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/issue-48041-dotnet
-      DOTNET_CLI_HOME: ${{ runner.temp }}/issue-48041-home
-      NUGET_PACKAGES: ${{ runner.temp }}/issue-48041-packages
-      NUGET_HTTP_CACHE_PATH: ${{ runner.temp }}/issue-48041-http
+      DOTNET_INSTALL_DIR: ${{ github.workspace }}/issue-48041/.dotnet
+      DOTNET_CLI_HOME: ${{ github.workspace }}/issue-48041/.home
+      NUGET_PACKAGES: ${{ github.workspace }}/issue-48041/.packages
+      NUGET_HTTP_CACHE_PATH: ${{ github.workspace }}/issue-48041/.http
     strategy:
       fail-fast: false
       max-parallel: 1
