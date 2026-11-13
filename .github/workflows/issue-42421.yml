@@ -1,0 +1,81 @@
+name: Issue 42421 cross-host evidence
+on:
+  push:
+    branches: [issue-42421]
+    paths: [issue-42421/**, .github/workflows/issue-42421.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  DOTNET_CLI_TELEMETRY_SESSIONID: gha-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_ADD_GLOBAL_TOOLS_TO_PATH: '0'
+  DOTNET_NOLOGO: '1'
+jobs:
+  windows-wsl:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: 10.0.100
+      - uses: Vampire/setup-wsl@887f39deb6c0976365e546926fe66f41b77d65ff
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: 2
+          additional-packages: ca-certificates curl libicu74 libssl3 python3 strace
+      - name: Install pinned Linux SDK in WSL
+        shell: wsl-bash {0}
+        run: |
+          export DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=0 DOTNET_CLI_TELEMETRY_OPTOUT=1
+          curl --fail --silent --show-error --location https://raw.githubusercontent.com/dotnet/install-scripts/ee83f9c42135205be4e0503bd472b6f99c9b7d51/src/dotnet-install.sh -o /tmp/issue42421-install.sh
+          bash /tmp/issue42421-install.sh --version 10.0.100 --install-dir "$HOME/dotnet42421" --no-path
+          "$HOME/dotnet42421/dotnet" --version
+      - name: Exercise one Windows and Linux project graph
+        shell: pwsh
+        run: .\issue-42421\run-windows.ps1
+      - name: Upload allowlisted sanitized evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue-42421-windows-wsl
+          path: issue-42421/evidence
+          if-no-files-found: warn
+          retention-days: 14
+  linux-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: 10.0.100
+      - name: Exercise Linux-only and malformed-environment controls
+        shell: bash
+        run: |
+          if ! command -v strace >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends strace
+          fi
+          export DOTNET42421="$(command -v dotnet)"
+          bash issue-42421/linux-step.sh prepare "$PWD/issue-42421" linux-prepare
+          bash issue-42421/linux-step.sh restore "$PWD/issue-42421" linux-only-first
+          bash issue-42421/linux-step.sh probe "$PWD/issue-42421" linux-only-first
+          bash issue-42421/linux-step.sh restore "$PWD/issue-42421" linux-only-second
+          bash issue-42421/linux-step.sh probe "$PWD/issue-42421" linux-only-second
+          bash issue-42421/linux-step.sh bad-env "$PWD/issue-42421" linux-colon-environment
+          python3 issue-42421/sanitize.py issue-42421/private-evidence issue-42421/evidence
+          python3 issue-42421/check-results.py issue-42421/evidence linux
+      - name: Upload allowlisted sanitized evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue-42421-linux-only
+          path: issue-42421/evidence
+          if-no-files-found: warn
+          retention-days: 14

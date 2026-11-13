@@ -1,0 +1,27 @@
+<Project>
+  <UsingTask TaskName="ConsumerProbe" AssemblyFile="$(ProbeAssembly)" Condition="'$(ProbeAssembly)' != ''" />
+  <Target Name="ProbeReferences">
+    <MSBuild Projects="@(ProjectReference)" Targets="ProbeGraph" BuildInParallel="false" />
+  </Target>
+  <Target Name="ProbeGraph" DependsOnTargets="ProbeReferences;ProbeOne" />
+  <Target Name="ProbeOne">
+    <ItemGroup>
+      <ProbeValues Include="NUGET_FALLBACK_PACKAGES" Value="$([System.Environment]::GetEnvironmentVariable('NUGET_FALLBACK_PACKAGES'))" />
+      <ProbeValues Include="RestoreFallbackFolders" Value="$(RestoreFallbackFolders)" />
+      <ProbeValues Include="RestoreAdditionalProjectFallbackFolders" Value="$(RestoreAdditionalProjectFallbackFolders)" />
+      <ProbeValues Include="RestoreAdditionalProjectFallbackFoldersExcludes" Value="$(RestoreAdditionalProjectFallbackFoldersExcludes)" />
+      <ProbeValues Include="MSBuildProjectExtensionsPath" Value="$(MSBuildProjectExtensionsPath)" />
+      <ProbeValues Include="BaseIntermediateOutputPath" Value="$(BaseIntermediateOutputPath)" />
+      <ProbeValues Include="ArtifactsPath" Value="$(ArtifactsPath)" />
+      <ProbeValues Include="NETCoreSdkVersion" Value="$(NETCoreSdkVersion)" />
+    </ItemGroup>
+    <ConsumerProbe
+      TaskAssembly="$(MicrosoftNETBuildTasksAssembly)"
+      AssetsPath="$(ProjectAssetsFile)"
+      CachePath="$(ProjectAssetsCacheFile)"
+      ProjectPath="$(MSBuildProjectFullPath)"
+      Framework="$(TargetFramework)"
+      EvidencePath="$(ProbeOutput)"
+      Values="@(ProbeValues)" />
+  </Target>
+</Project>
