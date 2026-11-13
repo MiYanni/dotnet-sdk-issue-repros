@@ -19,10 +19,19 @@ if [[ -n "$artifacts" ]]; then options+=("-p:ArtifactsPath=$artifacts"); fi
 if [[ "$mode" == prepare ]]; then
     "$dotnet" --info > "$private/dotnet-info.txt"
     uname -a > "$private/kernel.txt"
+    set +e
     "$dotnet" build Probe/Probe.csproj --configfile NuGet.config -m:1 -nr:false \
         -p:OutputPath="$HOME/.issue42421/probe/" \
         -p:BaseIntermediateOutputPath="$HOME/.issue42421/probe-obj/" \
         -p:UseSharedCompilation=false > "$private/build.raw" 2>&1
+    status=$?
+    set -e
+    grep -E 'error |warning |Build succeeded|Build FAILED' "$private/build.raw" > "$private/build-diagnostics.txt" || true
+    if [[ "$status" != 0 ]]; then
+        cat "$private/build-diagnostics.txt"
+        python3 sanitize.py "$root/private-evidence" "$root/evidence"
+        exit "$status"
+    fi
     test -f "$probe"
     exit 0
 fi
@@ -34,6 +43,8 @@ if [[ "$mode" == restore ]]; then
     command=("$dotnet" restore App/App.csproj --configfile NuGet.config --force -v:diag -m:1 -nr:false "${options[@]}" "-bl:$private/restore.binlog")
 elif [[ "$mode" == probe ]]; then
     command=("$dotnet" msbuild App/App.csproj -t:ProbeGraph -v:normal -m:1 -nr:false "${options[@]}" "-p:ProbeAssembly=$probe" "-p:ProbeOutput=$private" "-bl:$private/consumer.binlog")
+elif [[ "$mode" == standard ]]; then
+    command=("$dotnet" msbuild App/App.csproj -t:ResolvePackageAssets -v:normal -m:1 -nr:false "${options[@]}" "-p:DisablePackageAssetsCache=true" "-bl:$private/standard-consumer.binlog")
 else
     echo "Unknown mode: $mode" >&2
     exit 2

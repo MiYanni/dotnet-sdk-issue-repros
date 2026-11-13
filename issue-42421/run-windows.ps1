@@ -75,6 +75,7 @@ $env:NUGET_PACKAGES = $originalPackages
 if ($code -ne 0) { throw 'Could not populate the valid Windows fallback package cache' }
 $code = Run-WindowsRestore windows-configured-fallback $fallback
 if ($code -ne 0) { throw 'Valid configured Windows fallback restore failed' }
+Run-Wsl standard wsl-standard-after-configured-windows
 Run-Wsl probe wsl-after-configured-windows
 Run-Wsl restore wsl-repaired
 Run-Wsl probe wsl-repaired

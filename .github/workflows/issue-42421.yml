@@ -37,6 +37,10 @@ jobs:
       - name: Exercise one Windows and Linux project graph
         shell: pwsh
         run: .\issue-42421\run-windows.ps1
+      - name: Preserve partial allowlisted evidence on failure
+        if: always()
+        shell: pwsh
+        run: python .\issue-42421\sanitize.py .\issue-42421\private-evidence .\issue-42421\evidence
       - name: Upload allowlisted sanitized evidence only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -69,8 +73,13 @@ jobs:
           bash issue-42421/linux-step.sh restore "$PWD/issue-42421" linux-only-second
           bash issue-42421/linux-step.sh probe "$PWD/issue-42421" linux-only-second
           bash issue-42421/linux-step.sh bad-env "$PWD/issue-42421" linux-colon-environment
+          bash issue-42421/linux-step.sh probe "$PWD/issue-42421" linux-colon-consumer
           python3 issue-42421/sanitize.py issue-42421/private-evidence issue-42421/evidence
           python3 issue-42421/check-results.py issue-42421/evidence linux
+      - name: Preserve partial allowlisted evidence on failure
+        if: always()
+        shell: bash
+        run: python3 issue-42421/sanitize.py issue-42421/private-evidence issue-42421/evidence
       - name: Upload allowlisted sanitized evidence only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
